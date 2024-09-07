@@ -1,1 +1,0 @@
-clang++  -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/MyBoostApp.dir/main.cpp.o -o MyBoostApp  -lBoost::Boost
