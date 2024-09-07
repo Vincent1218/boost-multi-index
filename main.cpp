@@ -1,5 +1,6 @@
 // This is a test of C++ Boost library multi-index container
 
+#include <cstdint>
 #include <iostream>
 #include <string>
 #include <boost/multi_index_container.hpp>
@@ -10,15 +11,114 @@
 #include <boost/multi_index/key.hpp>
 
 
+// Custom string with template to pass in length
+template <std::size_t N>
+struct custom_string {
+  char data[N];
+
+  // get data
+  const char* c_str() const {
+    return data;
+  }
+
+  // hash
+  std::size_t hash() const {
+    return std::hash<std::string_view>{}(data);
+  }
+
+  // comparison
+  bool operator==(const custom_string& other) const {
+    return std::string_view(data) == std::string_view(other.data);
+  }
+
+  bool operator<(const custom_string& other) const {
+    return std::string_view(data) < std::string_view(other.data);
+  }
+
+  bool operator>(const custom_string& other) const {
+    return std::string_view(data) > std::string_view(other.data);
+  }
+
+  bool operator<=(const custom_string& other) const {
+    return std::string_view(data) <= std::string_view(other.data);
+  }
+
+  bool operator>=(const custom_string& other) const {
+    return std::string_view(data) >= std::string_view(other.data);
+  }
+
+  bool operator!=(const custom_string& other) const {
+    return std::string_view(data) != std::string_view(other.data);
+  }
+
+  // stream operator
+  friend std::ostream& operator<<(std::ostream& os, const custom_string& s) {
+    os << s.data;
+    return os;
+  }
+  
+  // copy assignment
+  custom_string& operator=(const char* str) {
+    std::strncpy(data, str, sizeof(data));
+    return *this;
+  }
+
+  // copy assignment
+  custom_string& operator=(const custom_string& other) {
+    std::strncpy(data, other.data, sizeof(data));
+    return *this;
+  }
+
+  // copy constructor
+  custom_string(const custom_string& other) {
+    std::strncpy(data, other.data, sizeof(data)); 
+  }
+
+  // copy constructor
+  custom_string(const char* str) {
+    std::strncpy(data, str, sizeof(data));
+  }
+
+  // default constructor
+  custom_string() {
+    std::memset(data, 0, sizeof(data));
+  }
+
+  // destructor
+  ~custom_string() {
+    std::memset(data, 0, sizeof(data));
+  }
+
+
+};
+
+// define custom hash function in std for custom_string
+namespace std {
+  template <std::size_t N>
+  struct hash<custom_string<N>> {
+    std::size_t operator()(const custom_string<N>& s) const {
+      return s.hash();
+    }
+  };
+}
+
+struct PersonString : custom_string<32> {};
 
 int main (int argc, char *argv[]) {
   // a mock class for data Person
   struct Person {
-    int id;
-    std::string name;
-    int age;
-    std::string nickname;
-    std::string language;
+    uint16_t id;
+    PersonString name;
+    uint16_t age;
+    PersonString nickname;
+    PersonString language;
+  };
+
+  // custom hash function for PersonString
+  struct PersonStringHash {
+    std::size_t operator()(const PersonString& s) const {
+      return s.hash();
+    }
   };
 
   // Define a multi-index container 
@@ -35,7 +135,7 @@ int main (int argc, char *argv[]) {
       boost::multi_index::hashed_unique<
         boost::multi_index::tag<by_name>,
         boost::multi_index::key<&Person::name>,
-        std::hash<std::string>
+        PersonStringHash
       >,
       boost::multi_index::hashed_unique<
         boost::multi_index::tag<by_id>,
@@ -50,8 +150,8 @@ int main (int argc, char *argv[]) {
           boost::multi_index::key<&Person::nickname>
         >,
         boost::multi_index::composite_key_hash<
-          std::hash<std::string>,
-          std::hash<std::string>
+          PersonStringHash,
+          PersonStringHash
         >
       >,
       boost::multi_index::hashed_unique<
@@ -63,30 +163,22 @@ int main (int argc, char *argv[]) {
         >,
         boost::multi_index::composite_key_hash<
           std::hash<int>,
-          std::hash<std::string>
+          PersonStringHash
         >
       >
     > 
   > PersonMultiIndexContainer;
 
-  /*Person p1 = {1, "Alice", 20, "Ali", "English"};*/
-  /*Person p2 = {2, "Bob", 30, "Bobby", "French"};*/
-  /*Person p3 = {3, "Cathy", 40, "Cat", "Spanish"};*/
-  /*Person p4 = {4, "David", 50, "Dave", "German"};*/
-
-  /*std::vector<Person*> persons_vec = {&p1, &p2, &p3, &p4};*/
   // vector of unique pointers
   std::vector<std::unique_ptr<Person>> persons_vec;
   persons_vec.push_back(std::make_unique<Person>(Person{1, "Alice", 20, "Ali", "English"}));
   persons_vec.push_back(std::make_unique<Person>(Person{2, "Bob", 30, "Bobby", "French"}));
   persons_vec.push_back(std::make_unique<Person>(Person{3, "Cathy", 40, "Cat", "Spanish"}));    
   persons_vec.push_back(std::make_unique<Person>(Person{4, "David", 50, "Dave", "German"}));
+  persons_vec.push_back(std::make_unique<Person>(Person{5, "Eva", 60, "Eve", "Italian"}));
+  persons_vec.push_back(std::make_unique<Person>(Person{6, "Frank", 70, "Frankie", "Chinese"}));
 
   PersonMultiIndexContainer persons;
-  /*persons.insert(&p1);*/
-  /*persons.insert(&p2);*/
-  /*persons.insert(&p3);*/
-  /*persons.insert(&p4);*/
   for (auto& p : persons_vec) {
     persons.insert(p.get());
   }
@@ -108,31 +200,39 @@ int main (int argc, char *argv[]) {
 
   // Query by by_id
   auto& id_index = persons.get<by_id>();
-  auto it2 = id_index.find(3);
-  if (it2 != id_index.end()) {
-    std::cout << "Found: " << (*it2)->name << std::endl;
-  } else {
-    std::cout << "Not found" << std::endl;
+  for (auto& p : persons_vec) {
+    auto it = id_index.find(p->id);
+    if (it != id_index.end()) {
+      std::cout << "Found: " << (*it)->name << std::endl;
+    } else {
+      std::cout << "Not found" << std::endl;
+    }
   }
+  std::cout << std::endl;
 
   // Query by language and by_language_nickname
   auto& language_nickname_index = persons.get<by_language_nickname>();
-  auto it3 = language_nickname_index.find(std::make_tuple("Bob", "Bobby"));
-  if (it3 != language_nickname_index.end()) {
-    std::cout << "Found: " << (*it3)->name << std::endl;
-  } else {
-    std::cout << "Not found" << std::endl;
+  for (auto& p : persons_vec) {
+    auto it = language_nickname_index.find(std::make_tuple(p->name, p->nickname));
+    if (it != language_nickname_index.end()) {
+      std::cout << "Found: " << (*it)->name << std::endl;
+    } else {
+      std::cout << "Not found" << std::endl;
+    }
   }
+  std::cout << std::endl;
 
   // Query by age and by_language_nickname
   auto& age_nickname_index = persons.get<by_age_nickname>();
-  auto it4 = age_nickname_index.find(std::make_tuple(30, "Bobby"));
-  if (it4 != age_nickname_index.end()) {
-    std::cout << "Found: " << (*it4)->name << std::endl;
-  } else {
-    std::cout << "Not found" << std::endl;
+  for (auto& p : persons_vec) {
+    auto it = age_nickname_index.find(std::make_tuple(p->age, p->nickname));
+    if (it != age_nickname_index.end()) {
+      std::cout << "Found: " << (*it)->name << std::endl;
+    } else {
+      std::cout << "Not found" << std::endl;
+    }
   }
-
+  std::cout << std::endl;
 
   return 0;
 }
