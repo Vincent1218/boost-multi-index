@@ -1,0 +1,18 @@
+cmake_minimum_required(VERSION 3.10)
+
+# Project name and version
+project(MyBoostProject VERSION 1.0)
+set(CMAKE_C_COMPILER clang)
+set(CMAKE_CXX_COMPILER clang++)
+# Specify the C++ standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+# Find Boost libraries
+find_package(Boost REQUIRED)
+
+# Add the executable
+add_executable(MyBoostProject main.cpp)
+
+# Include Boost headers
+target_include_directories(MyBoostProject PRIVATE ${Boost_INCLUDE_DIRS})
