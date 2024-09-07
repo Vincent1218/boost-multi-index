@@ -128,6 +128,7 @@ int main (int argc, char *argv[]) {
   struct by_name {};
   struct by_language_nickname {};
   struct by_age_nickname {};
+  struct by_id_name {};
 
   typedef boost::multi_index_container<
     Person*,
@@ -165,6 +166,18 @@ int main (int argc, char *argv[]) {
           std::hash<int>,
           PersonStringHash
         >
+      >,
+      boost::multi_index::hashed_unique<
+        boost::multi_index::tag<by_id_name>,
+        boost::multi_index::composite_key<
+          Person,
+          boost::multi_index::key<&Person::id>,
+          boost::multi_index::key<&Person::name>
+        >,
+        boost::multi_index::composite_key_hash<
+          std::hash<int>,
+          PersonStringHash
+        >
       >
     > 
   > PersonMultiIndexContainer;
@@ -177,12 +190,18 @@ int main (int argc, char *argv[]) {
   persons_vec.push_back(std::make_unique<Person>(Person{4, "David", 50, "Dave", "German"}));
   persons_vec.push_back(std::make_unique<Person>(Person{5, "Eva", 60, "Eve", "Italian"}));
   persons_vec.push_back(std::make_unique<Person>(Person{6, "Frank", 70, "Frankie", "Chinese"}));
+  persons_vec.push_back(std::make_unique<Person>(Person{7, "Grace", 80, "Gracie", "Japanese"}));
+  persons_vec.push_back(std::make_unique<Person>(Person{8, "Hank", 90, "Hankie", "Korean"}));
+  persons_vec.push_back(std::make_unique<Person>(Person{9, "Ivy", 100, "Ive", "Russian"}));
+  persons_vec.push_back(std::make_unique<Person>(Person{10, "YTS2", 110, "Jackie", "Arabic"}));
 
   PersonMultiIndexContainer persons;
   for (auto& p : persons_vec) {
     persons.insert(p.get());
   }
 
+
+  int count = 0;
   // Query data from the container
   
   // Query by name
@@ -191,10 +210,12 @@ int main (int argc, char *argv[]) {
     auto it = name_index.find(p->name);
     if (it != name_index.end()) {
       std::cout << "Found: " << (*it)->name << std::endl;
+      count++;
     } else {
       std::cout << "Not found" << std::endl;
     }
   }
+  std::cout << "Count: " << count << std::endl;
   std::cout << std::endl;
   
 
@@ -204,10 +225,12 @@ int main (int argc, char *argv[]) {
     auto it = id_index.find(p->id);
     if (it != id_index.end()) {
       std::cout << "Found: " << (*it)->name << std::endl;
+      count++;
     } else {
       std::cout << "Not found" << std::endl;
     }
   }
+  std::cout << "Count: " << count << std::endl;
   std::cout << std::endl;
 
   // Query by language and by_language_nickname
@@ -216,10 +239,12 @@ int main (int argc, char *argv[]) {
     auto it = language_nickname_index.find(std::make_tuple(p->name, p->nickname));
     if (it != language_nickname_index.end()) {
       std::cout << "Found: " << (*it)->name << std::endl;
+      count++;
     } else {
       std::cout << "Not found" << std::endl;
     }
   }
+  std::cout << "Count: " << count << std::endl;
   std::cout << std::endl;
 
   // Query by age and by_language_nickname
@@ -228,10 +253,26 @@ int main (int argc, char *argv[]) {
     auto it = age_nickname_index.find(std::make_tuple(p->age, p->nickname));
     if (it != age_nickname_index.end()) {
       std::cout << "Found: " << (*it)->name << std::endl;
+      count++;
     } else {
       std::cout << "Not found" << std::endl;
     }
   }
+  std::cout << "Count: " << count << std::endl;
+  std::cout << std::endl;
+
+  // Query by id and by_id_name
+  auto& id_name_index = persons.get<by_id_name>();
+  for (auto& p : persons_vec) {
+    auto it = id_name_index.find(std::make_tuple(p->id, p->name));
+    if (it != id_name_index.end()) {
+      std::cout << "Found: " << (*it)->name << std::endl;
+      count++;
+    } else {
+      std::cout << "Not found" << std::endl;
+    }
+  }
+  std::cout << "Count: " << count << std::endl;
   std::cout << std::endl;
 
   return 0;
